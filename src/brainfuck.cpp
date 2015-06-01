@@ -79,6 +79,7 @@ public:
     vector<Node*> children;
     virtual void accept(Visitor * v) = 0;
 };
+
 /**
  * Loop publicly extends Node to accept visitors.
  * Loop represents a loop in Brainfuck.
@@ -157,6 +158,7 @@ class Printer : public Visitor {
             for (vector<Node*>::const_iterator it = program->children.begin(); it != program->children.end(); ++it) {
                 (*it)->accept(this);
             }
+            cout << '\n';
         }
 };
 
