@@ -1,4 +1,4 @@
-/*
+/* Mark Piontkowski
 = Brainfuck
 
 If you have gcc:
@@ -12,6 +12,7 @@ brainfuck.exe helloworld.bf
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <cstring>
 
 using namespace std;
 
@@ -32,6 +33,8 @@ class CommandNode;
 class Loop;
 class Program;
 class Container;
+class Printer;
+class Interpreter;
 
 /**
  * Visits?!? Well, that'd indicate visitors!
@@ -107,7 +110,6 @@ class Program : public Container {
  * Modify as necessary and add whatever functions you need to get things done.
  */
 void parse(fstream & file, Container * contain) {
-
     char c;
     Loop *looper;
 
@@ -124,10 +126,7 @@ void parse(fstream & file, Container * contain) {
 		else{
 			contain->children.push_back(new CommandNode(c)); // Add leaf to program
 		}
-
 	}
-
-
 }
 
 /**
@@ -162,10 +161,55 @@ class Printer : public Visitor {
         }
 };
 
+class Interpreter : public Visitor {
+    public:
+    	char memory[30000];
+    	char* ptr;
+        void visit(const CommandNode * leaf) {
+            switch (leaf->command) {
+                case INCREMENT:
+            			++(*ptr);
+                		break;
+                case DECREMENT:
+                		--(*ptr);
+                		break;
+                case SHIFT_LEFT:
+                		--ptr;
+                		break;
+                case SHIFT_RIGHT:
+                		++ptr;
+                		break;
+                case INPUT:
+                		*ptr=getchar();  //Error
+                		break;
+                case OUTPUT:
+                		putchar(*ptr);
+                		break;
+            }
+        }
+        void visit(const Loop * loop) {
+			while(*ptr > 0){
+            	for (vector<Node*>::const_iterator it = loop->children.begin(); it != loop->children.end(); ++it) {
+                	(*it)->accept(this);
+            	}
+			}
+        }
+        void visit(const Program * program) {
+			memset(memory, 0, 30000);
+			ptr = memory;
+            for (vector<Node*>::const_iterator it = program->children.begin(); it != program->children.end(); ++it) {
+                (*it)->accept(this);
+            }
+            cout << '\n';
+        }
+};
+
 int main(int argc, char *argv[]) {
     fstream file;
     Program program;
     Printer printer;
+    Interpreter interpret;
+
     if (argc == 1) {
         cout << argv[0] << ": No input files." << endl;
     } else if (argc > 1) {
@@ -173,6 +217,7 @@ int main(int argc, char *argv[]) {
             file.open(argv[i], fstream::in);
             parse(file, & program);
             program.accept(&printer);
+      		program.accept(&interpret);  //Use interpreter as a visitor
             file.close();
         }
     }
