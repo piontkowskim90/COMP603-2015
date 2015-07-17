@@ -25,7 +25,8 @@ typedef enum {
     SHIFT_LEFT, // <
     SHIFT_RIGHT, // >
     INPUT, // ,
-    OUTPUT // .
+    OUTPUT, // .
+    ZERO //0
 } Command;
 
 // Forward references. Silly C++!
@@ -62,7 +63,9 @@ class Node {
 class CommandNode : public Node {
     public:
         Command command;
-        CommandNode(char c) {
+        int count;
+        CommandNode(char c, int i){
+            count = i;
             switch(c) {
                 case '+': command = INCREMENT; break;
                 case '-': command = DECREMENT; break;
@@ -70,6 +73,7 @@ class CommandNode : public Node {
                 case '>': command = SHIFT_RIGHT; break;
                 case ',': command = INPUT; break;
                 case '.': command = OUTPUT; break;
+                case '0': command = ZERO; break;
             }
         }
         void accept (Visitor * v) {
@@ -110,21 +114,35 @@ class Program : public Container {
  * Modify as necessary and add whatever functions you need to get things done.
  */
 void parse(fstream & file, Container * contain) {
+    int count;
     char c;
     Loop *looper;
 
 	while (file >> c){
-
+	count = 0; //Reset count upon new char
 		if (c == '['){
             looper = new Loop();
-            parse(file, looper); //Recursively call parse on new loop
-            contain->children.push_back(looper); //Add sub-loop to program
+           	parse(file, looper); //Recursively call parse on new loop
+ /*           if(looper->children.size() == 1){
+					Node * test = looper->children[0];
+					//How to reach commandnode from node?
+					if(test->command == INCREMENT || test->command == DECREMENT){
+						contain->children.push_back(new CommandNode('0',1)); //Add ZERO to program
+					}
+					else{contain->children.push_back(looper); }//Add sub-loop to program
+			}
+			else{contain->children.push_back(looper);} //Add sub-loop to program
+*/			contain->children.push_back(looper);
+
 		}
-		else if (c == ']'){
-			return; //close loop container
-		}
-		else{
-			contain->children.push_back(new CommandNode(c)); // Add leaf to program
+		if (c == ']'){	return; }//close loop container
+		else{//Must be Command
+			count = 1; //at least 1 char
+			while(c == file.peek()){
+				file >> c;
+				count++;
+			}
+			contain->children.push_back(new CommandNode(c,count)); // Add leaf to program
 		}
 	}
 }
@@ -138,12 +156,13 @@ class Printer : public Visitor {
     public:
         void visit(const CommandNode * leaf) {
             switch (leaf->command) {
-                case INCREMENT:   cout << '+'; break;
-                case DECREMENT:   cout << '-'; break;
-                case SHIFT_LEFT:  cout << '<'; break;
-                case SHIFT_RIGHT: cout << '>'; break;
-                case INPUT:       cout << ','; break;
-                case OUTPUT:      cout << '.'; break;
+                case INCREMENT:   cout << leaf->count << '+'; break;
+                case DECREMENT:   cout << leaf->count << '-'; break;
+                case SHIFT_LEFT:  cout << leaf->count << '<'; break;
+                case SHIFT_RIGHT: cout << leaf->count << '>'; break;
+                case INPUT:       cout << leaf->count << ','; break;
+                case OUTPUT:      cout << leaf->count << '.'; break;
+                case ZERO:		  cout << leaf->count << 'Z'; break;
             }
         }
         void visit(const Loop * loop) {
@@ -166,24 +185,40 @@ class Interpreter : public Visitor {
     	char memory[30000];
     	char* ptr;
         void visit(const CommandNode * leaf) {
+            int count = leaf->count;
             switch (leaf->command) {
                 case INCREMENT:
-            			++(*ptr);
+                		while(count > 0){
+            				++(*ptr);
+            				count--; }
                 		break;
                 case DECREMENT:
-                		--(*ptr);
+                		while(count > 0){
+                			--(*ptr);
+                			count--; }
                 		break;
                 case SHIFT_LEFT:
-                		--ptr;
+                		while(count > 0){
+                			--ptr;
+                			count--; }
                 		break;
                 case SHIFT_RIGHT:
-                		++ptr;
+                		while(count > 0){
+                			++ptr;
+                			count--; }
                 		break;
                 case INPUT:
-                		*ptr=getchar();  //Error
+                		while(count > 0){
+                			*ptr=getchar();
+                			count--; }
                 		break;
                 case OUTPUT:
-                		putchar(*ptr);
+                		while(count > 0){
+                			putchar(*ptr);
+                			count--; }
+                		break;
+                case ZERO:
+				       *ptr = 0;
                 		break;
             }
         }
